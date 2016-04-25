@@ -507,25 +507,34 @@ private:
                 std::ostream_iterator<osmium::unsigned_object_id_type> ( std::cout, " -BF-> " ) );
 
   }
-
   int init ( boost::asio::ip::tcp::socket & socket );
-
+  
   struct SmartCar
   {
     int id;
     unsigned from;
     unsigned to;
-    int step;
+    unsigned step;
   };
 
   typedef SmartCar Gangster;
   typedef int Cop;
-
-  std::vector<Gangster> gangsters ( boost::asio::ip::tcp::socket & socket, int id, osmium::unsigned_object_id_type cop );
+  
+  std::vector<Gangster> gangsters ( boost::asio::ip::tcp::socket & socket, int id);//,osmium::unsigned_object_id_type cop );
   std::vector<Cop> initcops ( boost::asio::ip::tcp::socket & socket );
   void pos ( boost::asio::ip::tcp::socket & socket, int id );
   void car ( boost::asio::ip::tcp::socket & socket, int id, unsigned *f, unsigned *t, unsigned* s );
   void route ( boost::asio::ip::tcp::socket & socket, int id, std::vector<osmium::unsigned_object_id_type> & );
+  
+public:
+  struct Par
+  {
+  public:
+    Par(justine::sampleclient::MyShmClient::Gangster z,justine::sampleclient::MyShmClient::Gangster b): zsaru{z},bunozo{b}{}
+    justine::sampleclient::MyShmClient::Gangster bunozo;
+    justine::sampleclient::MyShmClient::Gangster zsaru;
+  };
+  
 };
 
 }

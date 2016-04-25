@@ -34,8 +34,8 @@
 
 char data[524288];
 
-std::vector<justine::sampleclient::MyShmClient::Gangster> justine::sampleclient::MyShmClient::gangsters ( boost::asio::ip::tcp::socket & socket, int id,
-    osmium::unsigned_object_id_type cop )
+std::vector<justine::sampleclient::MyShmClient::Gangster> justine::sampleclient::MyShmClient::gangsters ( boost::asio::ip::tcp::socket & socket, int id)
+   // osmium::unsigned_object_id_type cop )
 {
 
   boost::system::error_code err;
@@ -65,17 +65,18 @@ std::vector<justine::sampleclient::MyShmClient::Gangster> justine::sampleclient:
   int n {0};
   int nn {0};
   std::vector<Gangster> gangsters;
-
+int i=0;
   while ( std::sscanf ( data+nn, "<OK %d %u %u %u>%n", &idd, &f, &t, &s, &n ) == 4 )
     {
+      idd=i++;
       nn += n;
       gangsters.push_back ( Gangster {idd, f, t, s} );
     }
 
-  std::sort ( gangsters.begin(), gangsters.end(), [this, cop] ( Gangster x, Gangster y )
+  /*std::sort ( gangsters.begin(), gangsters.end(), [this, cop] ( Gangster x, Gangster y )
   {
     return dst ( cop, x.to ) < dst ( cop, y.to );
-  } );
+  } );*/
 
   std::cout.write ( data, length );
   std::cout << "Command GANGSTER sent." << std::endl;
@@ -223,13 +224,8 @@ void justine::sampleclient::MyShmClient::car ( boost::asio::ip::tcp::socket & so
 
 }
 
-void justine::sampleclient::MyShmClient::route (
-  boost::asio::ip::tcp::socket & socket,
-  int id,
-  std::vector<osmium::unsigned_object_id_type> & path
-)
+void justine::sampleclient::MyShmClient::route ( boost::asio::ip::tcp::socket & socket,  int id, std::vector<osmium::unsigned_object_id_type> & path)
 {
-
   boost::system::error_code err;
 
   size_t length = std::sprintf ( data,
@@ -265,7 +261,7 @@ void justine::sampleclient::MyShmClient::route (
 void justine::sampleclient::MyShmClient::start ( boost::asio::io_service& io_service, const char * port )
 {
 
-#ifdef DEBUG
+/*#ifdef DEBUG
   foo();
 #endif
 
@@ -313,7 +309,7 @@ void justine::sampleclient::MyShmClient::start ( boost::asio::io_service& io_ser
               route ( socket, id, path );
             }
         }
-    }
+    }*/
 }
 
 void justine::sampleclient::MyShmClient::start10 ( boost::asio::io_service& io_service, const char * port )
@@ -332,42 +328,114 @@ void justine::sampleclient::MyShmClient::start10 ( boost::asio::io_service& io_s
 
   std::vector<Cop> cops = initcops ( socket );
 
-  unsigned int g {0u};
+  /*unsigned int g {0u};
   unsigned int f {0u};
   unsigned int t {0u};
-  unsigned int s {0u};
-
+  unsigned int s {0u};*/
   std::vector<Gangster> gngstrs;
-
-  for ( ;; )
-    {
+  std::vector<Gangster> gangcop;
+  std::vector<Par> rendezes; 
+  gangcop.reserve(cops.size());
+  rendezes.reserve(gngstrs.size()*cops.size()); //így kicsit felgyorsítjuk
+  
+  for(auto cop:cops)	//megcsináljuk a gangcopot és feltöltjük
+  {
+    gangcop.push_back(Gangster{cop,0,0,0});
+  }
+  
+  do{
       std::this_thread::sleep_for ( std::chrono::milliseconds ( 200 ) );
-
-      for ( auto cop:cops )
-        {
-          car ( socket, cop, &f, &t, &s );
-
-          gngstrs = gangsters ( socket, cop, t );
-
-          if ( gngstrs.size() > 0 )
-            g = gngstrs[0].to;
-          else
-            g = 0;
-
-          if ( g > 0 )
-            {
-
-              std::vector<osmium::unsigned_object_id_type> path = hasDijkstraPath ( t, g );
-
-              if ( path.size() > 1 )
-                {
-
-                  std::copy ( path.begin(), path.end(),
-                              std::ostream_iterator<osmium::unsigned_object_id_type> ( std::cout, " -> " ) );
-
-                  route ( socket, cop, path );
-                }
-            }
-        }
-    }
+      rendezes.clear();
+      gngstrs=gangsters ( socket, cops[0]);
+      for (std::vector<Gangster>::iterator i=gangcop.begin();i!=gangcop.end();i++)
+      {
+	car ( socket, (*i).id, &((*i).from), &((*i).to), &((*i).step) ); //lekérdezzük a mostani gangcopnak a cuccát
+	for(std::vector<Gangster>::iterator j=gngstrs.begin();j!=gngstrs.end();j++) //gengsztereken végigmegyünk
+	{
+	rendezes.push_back(Par{*i,*j}); //Descartes-szorzat
+	}
+      }
+      std::sort(rendezes.begin(),rendezes.end(),[&] (const Par bla1,const Par bla2) {return dst(bla1.zsaru.to,bla1.bunozo.to)<dst(bla2.zsaru.to,bla2.bunozo.to);});
+      for(std::vector<Par>::iterator i=rendezes.begin();i!=rendezes.end();i++)
+      {
+	std::vector<Par>::iterator torlo=i+1;
+	while(torlo!=rendezes.end())
+	{
+	  if( ((*i).zsaru.id==(*torlo).zsaru.id) || ((*i).bunozo.id==(*torlo).bunozo.id))
+	  {
+	    rendezes.erase(torlo);
+	  }
+	  else
+	    torlo++;
+	}
+      } //elvileg a rendezes vektor most már a legjobb párokkal rendelkezik úgyh route-olunk
+      
+      for(std::vector<Par>::iterator i=rendezes.begin();i!=rendezes.end();i++)
+      {
+	std::vector<osmium::unsigned_object_id_type> path = hasDijkstraPath ( (*i).zsaru.to, (*i).bunozo.to );
+	 if ( path.size() > 1 )
+         {
+	    route ( socket, (*i).zsaru.id, path );
+         }
+      }
+    }while(rendezes.size()==cops.size());
+    
+    
+    do{
+      std::this_thread::sleep_for ( std::chrono::milliseconds ( 200 ) );
+      rendezes.clear();
+      gngstrs=gangsters ( socket, cops[0]);
+      for (std::vector<Gangster>::iterator i=gangcop.begin();i!=gangcop.end();i++)
+      {
+	car ( socket, (*i).id, &((*i).from), &((*i).to), &((*i).step) ); //lekérdezzük a mostani gangcopnak a cuccát
+	for(std::vector<Gangster>::iterator j=gngstrs.begin();j!=gngstrs.end();j++) //gengsztereken végigmegyünk
+	{
+	rendezes.push_back(Par{*i,*j}); //Descartes-szorzat
+	}
+      }
+      std::sort(rendezes.begin(),rendezes.end(),[&] (const Par bla1,const Par bla2) {return dst(bla1.zsaru.to,bla1.bunozo.to)<dst(bla2.zsaru.to,bla2.bunozo.to);});
+      for(std::vector<Par>::iterator i=rendezes.begin();i!=rendezes.end();i++)
+      {
+	std::vector<Par>::iterator torlo=i+1;
+	while(torlo!=rendezes.end())
+	{
+	  if( ((*i).zsaru.id==(*torlo).zsaru.id) || ((*i).bunozo.id==(*torlo).bunozo.id))
+	  {
+	    rendezes.erase(torlo);
+	  }
+	  else
+	    torlo++;
+	}
+      } //elvileg a rendezes vektor most már a legjobb párokkal rendelkezik úgyh route-olunk
+      
+      for(std::vector<Par>::iterator i=rendezes.begin();i!=rendezes.end();i++)
+      {
+	std::vector<osmium::unsigned_object_id_type> path = hasDijkstraPath ( (*i).zsaru.to, (*i).bunozo.to );
+	 if ( path.size() > 1 )
+         {
+	    route ( socket, (*i).zsaru.id, path );
+         }
+      }// route-oljuk a legjobb párokat
+      
+      //INNENTŐL A LEGKÖZELEBBIEK JÖNNEK
+      unsigned segedto;
+      for (std::vector<Gangster>::iterator zsernyak=gangcop.begin();zsernyak!=gangcop.end();zsernyak++)
+	{
+	  if(std::find_if(rendezes.begin(),rendezes.end(), [&] (const Par bla) {return bla.zsaru.id==(*zsernyak).id;})==rendezes.end()) //zsernyákunk nem mozdul
+	  {
+	    segedto=gngstrs[0].to; //a t-t most a gengszter to-jára használjuk (nem kell új változót létrehoznunk)
+	   for(std::vector<Gangster>::iterator i=gngstrs.begin()+1;i!=gngstrs.end();i++)
+	    {
+	      if(dst((*zsernyak).to,segedto)>dst((*zsernyak).to,(*i).to)) //ha találtunk egy kisebb távolságút
+		segedto=(*i).to;
+	    }
+	      std::vector<osmium::unsigned_object_id_type> path = hasDijkstraPath ( (*zsernyak).to, segedto );
+	      if ( path.size() > 1 )
+	      {
+		  route ( socket, (*zsernyak).id, path );
+	      }
+	  } 
+	}
+    }while(gngstrs.size());
+    
 }
