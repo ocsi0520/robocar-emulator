@@ -530,9 +530,10 @@ public:
   struct Par
   {
   public:
-    Par(justine::sampleclient::MyShmClient::Gangster z,justine::sampleclient::MyShmClient::Gangster b): zsaru{z},bunozo{b}{}
+    Par(justine::sampleclient::MyShmClient::Gangster z,justine::sampleclient::MyShmClient::Gangster b,double&& beirt): zsaru{z},bunozo{b}, distance{beirt}{};
     justine::sampleclient::MyShmClient::Gangster bunozo;
     justine::sampleclient::MyShmClient::Gangster zsaru;
+    double distance;
   };
   
 };
